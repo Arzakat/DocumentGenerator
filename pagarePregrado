@@ -1,0 +1,164 @@
+using iTextSharp.text;
+using iTextSharp.text.pdf;
+using iTextSharp.text.pdf.fonts;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using log4net;
+
+namespace Pdf
+{
+    public class PagarePregrado
+    {
+        private static readonly ILog log = LogManager.GetLogger(typeof(PagarePregrado));
+        public static PlantillaDocumento plantilla { get; set; }
+
+        public static void Generar(string rut)
+        {
+            plantilla = new PlantillaDocumento();
+            Alumno alumno = new Alumno();
+            try
+            {
+                plantilla = RepositoryFactory.Instance.SetPlantillaDocumento().Get(6);
+                var plantillaSeguro = new PlantillaDocumento();
+                plantillaSeguro.Descripcion = plantilla.Descripcion;
+
+                alumno = RepositoryFactory.Instance.SetAlumnos().GetByRut(rut);
+                var pregrado = new Pregrado();
+                pregrado.NombreAceptante = alumno.Nombre;
+                pregrado.ApellidoAceptante = alumno.Apellidos;
+                pregrado.RutAceptante = alumno.Rut;
+                pregrado.DireccionAceptante = alumno.Contratante.DireccionParticular;
+                var ciudad = (from i in alumno.Comuna.Ciudads select i).FirstOrDefault();
+                pregrado.CiudadAceptante = ciudad.CiudadId;
+                pregrado.ComunaAceptante = ciudad.Comuna.Nombre;
+                var matricula = (from i in alumno.Matriculas select i).FirstOrDefault();
+                pregrado.NumFolioPagare = matricula.MatriculaId.GetHashCode();
+                var cargo = (from i in matricula.Cargoes where i.TipoCargoId == "ARANCEL1" select i).FirstOrDefault();
+                pregrado.MontoPagare = cargo.Monto.GetValueOrDefault();
+                var formaPago = (from i in cargo.FormaPagoes select i).FirstOrDefault();
+                var cuota = (from i in formaPago.Cuotas select i).FirstOrDefault();
+                pregrado.Cuota = cuota.NumeroCuota.GetValueOrDefault();
+                pregrado.FechaActual = ((DateTime)formaPago.FechaInstCargo).Date.ToString("dd-MM-yyyy");
+                var descripcion = (from i in matricula.Cargoes where i.TipoCargoId == "ARANCEL1" select i).FirstOrDefault();
+                pregrado.DescripcionMontoPagare = descripcion.Descripcion.ToString();
+                pregrado.FechaPago = ((DateTime)cuota.FechaVencimiento).Date.ToString("dd-MM-yyyy");
+
+                PrintPregrado(pregrado);
+            }
+            catch (Exception e)
+            {
+                log.Error("se produjo un error");
+                log.Error(e);
+            }
+        }
+
+        public static string cuerpo { get; set; }
+
+        public static string Populate(Pregrado pregrado)
+        {
+            try
+            {
+                cuerpo = cuerpo.Replace("#MONTO_PAGARE", pregrado.MontoPagare.ToString());
+                cuerpo = cuerpo.Replace("#DESCRIPCION_MONTO_PAGARE", pregrado.DescripcionMontoPagare);
+                cuerpo = cuerpo.Replace("#FOLIO_CONTRATO", pregrado.NumFolioPagare.ToString());
+                cuerpo = cuerpo.Replace("#FECHA_CONTRATO", pregrado.FechaActual);
+                cuerpo = cuerpo.Replace("#NUMERO_CUOTAS", pregrado.Cuota.ToString());
+                cuerpo = cuerpo.Replace("#FECHA_NN", pregrado.FechaPago);
+                cuerpo = cuerpo.Replace("#FECHA", pregrado.FechaActual);
+                cuerpo = cuerpo.Replace("#NOMBRE_COMPLETO_ACEPTANTE", pregrado.NombreAceptante + " " + pregrado.ApellidoAceptante);
+                cuerpo = cuerpo.Replace("#RUT_ACEPTANTE", pregrado.RutAceptante);
+                cuerpo = cuerpo.Replace("#DIRECCION_ACEPTANTE", pregrado.DireccionAceptante);
+                cuerpo = cuerpo.Replace("#COMUNA_ACEPTANTE", pregrado.ComunaAceptante);
+                cuerpo = cuerpo.Replace("#CIUDAD_ACEPTANTE", pregrado.CiudadAceptante);
+            }
+            catch (Exception e)
+            {
+                log.Error("se produjo un error");
+                log.Error(e);
+            }
+            return cuerpo;
+        }
+
+        private static void PrintPregrado(Pregrado pregrado)
+        {
+            Document doc = new Document(PageSize.A4, 50, 40, 25, 40);
+
+            try
+            {
+                string ruta = @"C:\pdf\pagarePregrado-"+pregrado.RutAceptante+".pdf";
+                if (!Directory.Exists(@"C:\pdf\"))
+                {
+                    System.IO.Directory.CreateDirectory(@"C:\pdf\");
+                }
+                int cont = 0;
+                while (File.Exists(ruta))
+                {
+
+                    if (cont > 0 && cont < 10)
+                        ruta = ruta.Remove(ruta.Length - 7, 3);
+                    else if (cont > 0)
+                        ruta = ruta.Remove(ruta.Length - 8, 3);
+                    cont += 1;
+                    ruta = ruta.Replace(".pdf", "");
+                    ruta = ruta + "(" + cont + ").pdf";
+                }
+                PdfWriter wri = PdfWriter.GetInstance(doc, new FileStream(ruta, FileMode.Create));
+                doc.Open();
+                doc.NewPage();
+                doc.NewPage();
+
+                Paragraph escribir = new Paragraph();
+                escribir.Alignment = Element.ALIGN_JUSTIFIED;
+                escribir.Font = FontFactory.GetFont("Arial", 9);
+                escribir.SetLeading(0.0f, 1.3f);
+                var boldeded = FontFactory.GetFont(FontFactory.TIMES_BOLD, 9);
+                cuerpo = plantilla.Descripcion; 
+
+                /*cuerpo = @"
+Pagaré a ""XXX"", el monto de $#MONTO_PAGARE (#DESCRIPCION_MONTO_PAGARE) en el documento N° #FOLIO_CONTRATO, fecha #FECHA_CONTRATO. Se pagará en #NUMERO_CUOTAS cuotas, con fecha de vencimiento #FECHA_NN. 
+
+Santiago, #FECHA:
+
+Nombre del Aceptante:      #NOMBRE_COMPLETO_ACEPTANTE
+Cédula de Identidad:          #RUT_ACEPTANTE
+Domicilio:                            #DIRECCION_ACEPTANTE   
+Comuna:                        #COMUNA_ACEPTANTE
+Ciudad:                               #CIUDAD_ACEPTANTE
+
+
+
+De acuerdo a este documento, Don(ña) #NOMBRE_COMPLETO_ACEPTANTE, se compromete a pagar.
+
+Nombre del Aval:                                           #NOMBRE_COMPLETO_ACEPTANTE  
+
+Cédula de Identidad:                                             #RUT_ACEPTANTE
+
+Domicilio:                                                               #DIRECCION_ACEPTANTE  
+
+Comuna de:                                                           #COMUNA_ACEPTANTE  
+
+Ciudad:                                                                  #CIUDAD_ACEPTANTE
+        ";*/
+
+                
+                escribir.Add(Populate(pregrado));
+                doc.Add(new Paragraph(Encabezado.Get()));
+                doc.Add(new Paragraph(escribir));
+                doc.Close();
+                Process.Start(ruta);
+
+            }
+            catch (Exception e)
+            {
+                log.Error("se produjo un error");
+                log.Error(e);
+                doc.Close();
+            }
+        }
+    }
+}

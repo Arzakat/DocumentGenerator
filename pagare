@@ -1,0 +1,100 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using cl.bms.kitemergencia.entitylayer.Models;
+
+namespace Pdf
+{
+    public class Pagare
+    {
+        public String Nombre { get; set; }
+        public String Carrera { get; set; }
+        public int DeudaArancel { get; set; }
+        public int Cuota { get; set; }
+        public int ValorCuota { get; set; }
+        public String ContratanteId { get; set; }
+        public String Comuna { get; set; }
+        public String Rut { get; set; }
+        public String Apellido { get; set; }
+        public DateTime FechCreacion { get; set; }
+        public DateTime FechNac { get; set; }
+        public int Estado { get; set; }
+        public int Arancelid { get; set; }
+        public String ContratanteNombre { get; set; }
+        public String ContratanteRut { get; set; }
+        public String ContratanteDomicilio { get; set; }
+        public String ContratanteComuna { get; set; }
+        public String ContratanteCiudad { get; set; }
+        public String ContratanteApellido { get; set; }
+        public String FechaVencimiento { get; set; }
+        public String FechaCreacion { get; set; }
+    }
+
+    public class Pregrado 
+    {
+        public string cuerpo { get; set; }
+        public int MontoPagare { get; set; }
+        public String DescripcionMontoPagare { get; set; }
+        public int NumFolioPagare { get; set; }
+        public String FechaActual { get; set; }
+        public int Cuota { get; set; }
+        public String FechaPago { get; set; }
+        public String NombreAceptante { get; set; }
+        public String ApellidoAceptante { get; set; }
+        public String RutAceptante { get; set; }
+        public String DireccionAceptante { get; set; }
+        public String ComunaAceptante { get; set; }
+        public String CiudadAceptante { get; set; }
+    }
+
+    public class Prestacion
+    {
+        public int NumFolioPagare { get; set; }
+        public String FechaActual { get; set; }
+        public String NombreAlumno { get; set; }
+        public String ApellidoAlumno { get; set; }
+        public String NombreAceptante { get; set; }
+        public String ApellidoAceptante { get; set; }
+        public String RutAceptante { get; set; }
+        public String DireccionAceptante { get; set; }
+        public String RutAlumno { get; set; }
+        public int AgnoAcademicoAlum { get; set; }
+        public String CodigoPrograma { get; set; }
+        public String NombrePrograma { get; set; }
+        public String Nivel { get; set; }
+        public String Campus { get; set; }
+        public int ValorGastosAdmin { get; set; }
+        public String Dia { get; set; }
+        public String Mes { get; set; }
+        public string Agno { get; set; }
+        public int ValorMatricula { get; set; }
+        public int ValorArancel { get; set; }
+    }
+
+    public class Salud
+    {
+        public String NombreSostenedor { get; set; }
+        public String ApellidoSostenedor { get; set; }
+        public String FechaNacSostenedor { get; set; }
+        public String RutSostenedor { get; set; }
+        public String RutAlumno { get; set; }
+        public String PlantillaSalud { get; set; }
+    }
+
+    public class SeguroAlumno
+    {
+        public String NombreAceptante { get; set; }
+        public String ApellidoAceptante { get; set; }
+        public String RutAceptante { get; set; }
+        public String NombreAlumno { get; set; }
+        public String ApellidoAlumno { get; set; }
+        public int PeriodoAcademico { get; set; }
+    }
+
+    public class NombrePlantilla
+    {
+        public String DescripcionPlantilla { get; set; }
+    }
+}

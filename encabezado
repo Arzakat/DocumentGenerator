@@ -1,0 +1,36 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.IO;
+using System.Globalization;
+using iTextSharp.text;
+using iTextSharp.text.pdf;
+
+namespace Pdf
+{
+    public class Encabezado
+    {
+        public static Paragraph Get()
+        {
+            Paragraph enc = new Paragraph();
+            enc.Alignment = Element.ALIGN_LEFT;
+            enc.Font = FontFactory.GetFont("MS Sans Serif", 7, BaseColor.GRAY);
+            var normal = FontFactory.GetFont(FontFactory.TIMES_ROMAN, 7);
+            var bolded = FontFactory.GetFont(FontFactory.TIMES_BOLD, 7);
+            enc.SetLeading(0.0f, 1.1f); //con esto se reducen los saltos de línea!
+            enc.Add(new Chunk("UNIVERSIDAD NACIONAL XXX, normal));
+            enc.Add(new Chunk("\nCasa Central", bolded));
+            enc.Add(new Chunk("\nAv.Siempre Viva - Santiago - Chile" + "\nTeléfono: (2)111111 - Fax: (2)222222" +
+            "\nTeléfono: (2)333333 - Fax: (2)444444", normal));
+            enc.Add(new Chunk("\nwww.universidadxxx.cl", bolded));
+            enc.Add(new Chunk("\n"));
+            enc.Add(new Chunk("\n"));
+            return enc;
+        }
+    }
+}

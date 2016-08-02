@@ -1,0 +1,166 @@
+using System;
+using System.Activities.Statements;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Diagnostics;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.IO;
+using System.Globalization;
+using System.Runtime.Remoting.Metadata.W3cXsd2001;
+using System.Security.Cryptography;
+using iTextSharp.text;
+using iTextSharp.text.pdf;
+using log4net;
+
+namespace Pdf
+{
+public class PDF
+    {
+        private static readonly ILog log = LogManager.GetLogger(typeof(PDF));
+        
+
+        public static void Generar(string rut)
+        {
+            
+            Alumno alumno = new Alumno();
+            try
+            {
+                
+                alumno = RepositoryFactory.Instance.SetAlumnos().GetByRut(rut);
+                var pagare = new Pagare();
+                pagare.Comuna = alumno.ComunaId;
+                pagare.ContratanteId = alumno.Contratante.ContratanteId.ToString();
+                pagare.Rut = alumno.Rut;
+                pagare.Nombre = alumno.Nombre;
+                pagare.Apellido = alumno.Apellidos;
+                pagare.FechCreacion = alumno.FechaCreacion.GetValueOrDefault();
+                pagare.FechNac = alumno.FechaNacimiento.GetValueOrDefault();           
+                pagare.ContratanteNombre = alumno.Contratante.Nombres.ToString();
+                pagare.ContratanteApellido = alumno.Contratante.Apellidos.ToString();
+                pagare.ContratanteRut = alumno.Contratante.Rut.ToString();
+                pagare.ContratanteDomicilio = alumno.Contratante.DireccionParticular.ToString();
+                var matricula = (from i in alumno.Matriculas select i).FirstOrDefault();
+                pagare.Arancelid = matricula.MatriculaId.GetHashCode();
+                var cargo = (from i in matricula.Cargoes where i.TipoCargoId == "ARANCEL1" select i).FirstOrDefault();
+                pagare.DeudaArancel = cargo.Monto.GetValueOrDefault();
+                var formaPago = (from i in cargo.FormaPagoes select i).FirstOrDefault();
+                pagare.FechaCreacion = ((DateTime) formaPago.FechaInstCargo).Date.ToString("MM-dd-yyyy");           
+                var cuota = (from i in formaPago.Cuotas select i).FirstOrDefault();
+                pagare.Cuota = cuota.NumeroCuota.GetValueOrDefault();
+                //var fechVenc = (cuota.FechaVencimiento).GetValueOrDefault();
+                pagare.FechaVencimiento = ((DateTime)cuota.FechaVencimiento).Date.ToString("MM-dd-yyyy");
+                var monto = cuota.Monto;
+                pagare.ValorCuota = monto.GetValueOrDefault();
+                var ciudad = (from i in alumno.Comuna.Ciudads select i).FirstOrDefault();
+                pagare.ContratanteCiudad = ciudad.CiudadId;
+                pagare.ContratanteComuna = ciudad.Comuna.Nombre;
+
+                PrintPDF(pagare);
+            }
+            catch (Exception e)
+            {
+                log.Error("Se ha producido un error");
+                log.Error(e);
+            }
+        }
+
+        private static void PrintPDF(Pagare pagare)
+        {
+            Document doc = new Document(PageSize.A4, 50, 40, 25, 40); 
+
+            try
+            {
+                //string ruta = @"D:\pagarePregradoInicial.pdf";
+                string ruta = @"C:\pdf\pagarePregradoInicial-" + pagare.Rut + ".pdf";
+                if (!Directory.Exists(@"C:\pdf\"))
+                {
+                    System.IO.Directory.CreateDirectory(@"C:\pdf\");
+                }
+                int cont = 0;
+                while (File.Exists(ruta))
+                {
+
+                    if (cont > 0 && cont < 10)
+                        ruta = ruta.Remove(ruta.Length - 7, 3);
+                    else if (cont > 0)
+                        ruta = ruta.Remove(ruta.Length - 8, 3);
+                    cont += 1;
+                    ruta = ruta.Replace(".pdf", "");
+                    ruta = ruta + "(" + cont + ").pdf";
+                }
+                PdfWriter wri = PdfWriter.GetInstance(doc, new FileStream(ruta, FileMode.Create)); 
+
+                doc.Open();   
+                doc.NewPage();
+                doc.NewPage();
+                doc.NewPage();
+
+                Paragraph escribir = new Paragraph();
+                escribir.Alignment = Element.ALIGN_JUSTIFIED;
+                escribir.Font = FontFactory.GetFont("Arial", 9);  
+                escribir.SetLeading(0.0f, 1.3f);
+                var boldeded = FontFactory.GetFont(FontFactory.TIMES_BOLD, 9);
+
+                escribir.Add("\nPagaré a ""XXX"" el monto de $" + pagare.DeudaArancel +
+                             " en el documento N° " + pagare.Arancelid + " fecha " + pagare.FechaCreacion +
+                             " Se pagará en " + pagare.Cuota + " cuotas, con fecha de vencimiento: " + pagare.FechaVencimiento +
+                             "\n\r" + pagare.Cuota + " cuotas mensuales, con un valor de $" + pagare.ValorCuota + " que vencen el " +
+                             pagare.FechaCreacion + " hasta el " + pagare.FechaVencimiento +
+                             "\n\r");
+
+                escribir.Add(new Chunk("\n\rSantiago, " + pagare.FechaCreacion, boldeded));
+                escribir.Add(new Chunk("\n\rNombre: " + pagare.ContratanteNombre + " " + pagare.ContratanteApellido, boldeded));
+                escribir.Add(new Chunk("\n\rCédula de Identidad: " + pagare.ContratanteRut, boldeded));
+                escribir.Add(new Chunk("\n\rDomicilio: " + pagare.ContratanteDomicilio, boldeded));
+                escribir.Add(new Chunk("\n\rComuna: " + pagare.ContratanteComuna, boldeded));
+                escribir.Add(new Chunk("\n\rCiudad: " + pagare.ContratanteCiudad, boldeded));
+
+                Paragraph PhFirma = new Paragraph();
+                PhFirma.Font = FontFactory.GetFont("Arial", 9);
+                PhFirma.Alignment = Element.ALIGN_RIGHT;
+                PhFirma.SetLeading(0.0f, 1.3f); //con esto se reducen los saltos de línea!
+                PhFirma.Add(new Chunk("\n\r--------------------------", boldeded));
+
+                Paragraph TxtEscribir = new Paragraph();
+                TxtEscribir.Alignment = Element.ALIGN_JUSTIFIED;  
+                TxtEscribir.Font = FontFactory.GetFont("Arial", 9); 
+                TxtEscribir.SetLeading(0.0f, 1.3f);
+
+                TxtEscribir.Add("\n\rDe acuerdo a este documento, Don(ña) " + pagare.Nombre + " " + pagare.Apellido + ", se compromete a pagar."
+                TxtEscribir.Add(new Chunk("\n\rNombre del Aval: " + pagare.ContratanteNombre + " " + pagare.ContratanteApellido, boldeded));
+                TxtEscribir.Add(new Chunk("\n\rCédula de Identidad: " + pagare.ContratanteRut, boldeded));
+                TxtEscribir.Add(new Chunk("\n\rDomicilio: " + pagare.ContratanteDomicilio, boldeded));
+                TxtEscribir.Add(new Chunk("\n\rComuna: " + pagare.ContratanteComuna, boldeded));
+                TxtEscribir.Add(new Chunk("\n\rCiudad: " + pagare.ContratanteCiudad, boldeded));
+
+                Paragraph firma = new Paragraph();
+                firma.Font = FontFactory.GetFont("Arial", 9);
+                firma.Alignment = Element.ALIGN_RIGHT;
+                firma.SetLeading(0.0f, 1.3f); //con esto se reducen los saltos de línea!
+
+                firma.Add(new Chunk("\n\rFirma Aval, Fiador y Codeudor Solidario ", boldeded));
+                firma.Add("\n\rEn" + " SANTIAGO, a " + pagare.FechaCreacion);
+
+                doc.Add(new Paragraph(Encabezado.Get()));
+                doc.Add(new Paragraph(escribir));
+                doc.Add(new Paragraph(PhFirma));
+                doc.Add(new Paragraph(TxtEscribir));
+                doc.Add(new Paragraph(firma));
+
+                doc.Close();
+                Process.Start(ruta);
+
+            }
+            catch (Exception e)
+            {
+                log.Error("Se ha producido un error");
+                log.Error(e);
+                doc.Close();
+            }
+        }
+    }
+}
